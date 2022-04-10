@@ -53,6 +53,28 @@ func (sink *CosmosSink) Connect() error {
 	return nil
 }
 
+func (sink *CosmosSink) TestConnect(contact_point, cassandra_port, cassandra_user, cassandra_password string) error {
+	sink.contact_point = contact_point
+	sink.cassandra_port = cassandra_port
+	sink.cassandra_user = cassandra_user
+	sink.cassandra_password = cassandra_password
+
+	logging.Debug(
+		fmt.Sprintf(
+			"Test Connecting to Cosmos DB with contact point: [%v], port [%v], user: [%v]", sink.contact_point, sink.cassandra_port, sink.cassandra_user))
+
+	if sink.cosmos_session == nil || sink.cosmos_session.Closed() {
+		var err error
+		sink.cosmos_session, err = getSession(sink.contact_point, sink.cassandra_port, sink.cassandra_user, sink.cassandra_password)
+		if err != nil {
+			logging.Fatal(fmt.Sprintf("error fetching cosmos test session: %v", err))
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (sink *CosmosSink) InsertLocation(location *gen.Location) (bool, error) {
 	if sink.cosmos_session == nil {
 		logging.Fatal("Please connect before inserting location.")
