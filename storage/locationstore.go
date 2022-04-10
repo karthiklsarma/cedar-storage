@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 	"github.com/karthiklsarma/cedar-logging/logging"
 	"github.com/karthiklsarma/cedar-schema/gen"
 )
@@ -19,7 +20,8 @@ const (
 	COSMOSDB_PASSWORD      = "COSMOSDB_PASSWORD"
 )
 
-const INSERT_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
+const INSERT_LOCATION_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
+const INSERT_USER_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 
 type CosmosSink struct {
 	contact_point      string
@@ -56,13 +58,29 @@ func (sink *CosmosSink) InsertLocation(location *gen.Location) (bool, error) {
 		logging.Fatal("Please connect before inserting location.")
 		return false, fmt.Errorf("Please connect before inserting location.")
 	}
-	err := sink.cosmos_session.Query(INSERT_QUERY).Bind(location.Id, location.Lat, location.Lng, location.Timestamp, location.Device).Exec()
+	err := sink.cosmos_session.Query(INSERT_LOCATION_QUERY).Bind(location.Id, location.Lat, location.Lng, location.Timestamp, location.Device).Exec()
 	if err != nil {
 		logging.Fatal(fmt.Sprintf("Failed to insert location into location table: %v", err))
 		return false, err
 	}
 
 	logging.Info("successfully inserted location into location table.")
+	return true, nil
+}
+
+func (sink *CosmosSink) InsertUser(user *gen.User) (bool, error) {
+	if sink.cosmos_session == nil {
+		logging.Fatal("Please connect before inserting user.")
+		return false, fmt.Errorf("Please connect before inserting user.")
+	}
+	err := sink.cosmos_session.Query(INSERT_USER_QUERY).Bind(
+		uuid.New().String(), time.Now().UTC().Unix(), user.Username, user.Firstname, user.Lastname, user.Password, user.Email, user.Phone).Exec()
+	if err != nil {
+		logging.Fatal(fmt.Sprintf("Failed to insert user %v into user table: %v", user.Username, err))
+		return false, err
+	}
+
+	logging.Info(fmt.Sprintf("Successfully inserted user %v into user table.", user.Username))
 	return true, nil
 }
 

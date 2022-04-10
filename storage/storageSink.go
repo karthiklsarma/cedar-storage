@@ -7,4 +7,5 @@ import (
 type IStorageSink interface {
 	Connect() error
 	InsertLocation(location *gen.Location) (bool, error)
+	InsertUser(user *gen.User) (bool, error)
 }
