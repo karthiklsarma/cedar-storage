@@ -82,7 +82,7 @@ func (sink *CosmosSink) InsertLocation(location *gen.Location) (bool, error) {
 	}
 	err := sink.cosmos_session.Query(INSERT_LOCATION_QUERY).Bind(location.Id, location.Lat, location.Lng, location.Timestamp, location.Device).Exec()
 	if err != nil {
-		logging.Fatal(fmt.Sprintf("Failed to insert location into location table: %v", err))
+		logging.Error(fmt.Sprintf("Failed to insert location into location table: %v", err))
 		return false, err
 	}
 
@@ -98,7 +98,7 @@ func (sink *CosmosSink) InsertUser(user *gen.User) (bool, error) {
 	err := sink.cosmos_session.Query(INSERT_USER_QUERY).Bind(
 		uuid.New().String(), time.Now().UTC().Unix(), user.Username, user.Firstname, user.Lastname, user.Password, user.Email, user.Phone).Exec()
 	if err != nil {
-		logging.Fatal(fmt.Sprintf("Failed to insert user %v into user table: %v", user.Username, err))
+		logging.Error(fmt.Sprintf("Failed to insert user %v into user table: %v", user.Username, err))
 		return false, err
 	}
 
