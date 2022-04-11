@@ -21,7 +21,7 @@ const (
 )
 
 const INSERT_LOCATION_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
-const INSERT_USER_QUERY = "INSERT IF NOT EXISTS INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+const INSERT_USER_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS"
 
 type CosmosSink struct {
 	contact_point      string
