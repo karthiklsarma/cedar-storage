@@ -84,7 +84,6 @@ func (sink *CosmosSink) Authenticate(username, password string) (bool, error) {
 
 	var dbpassword string
 	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY, username).Consistency(gocql.One).Scan(&dbpassword)
-	logging.Info(fmt.Sprintf("Password from DB: %v", dbpassword))
 	if err != nil {
 		logging.Error(fmt.Sprintf("Authentication failed: %v", err))
 		return false, err
