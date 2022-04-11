@@ -22,7 +22,7 @@ const (
 
 const INSERT_LOCATION_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
 const INSERT_USER_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS"
-const AUTHENTICATION_QUERY = "SELECT password FROM cedarcosmoskeyspace.cedarusers WHERE username = ?"
+const AUTHENTICATION_QUERY = `SELECT password FROM cedarcosmoskeyspace.cedarusers WHERE username = ? LIMIT 1`
 
 type CosmosSink struct {
 	contact_point      string
@@ -83,7 +83,8 @@ func (sink *CosmosSink) Authenticate(username, password string) (bool, error) {
 	}
 
 	var dbpassword string
-	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY).Bind(username).Consistency(gocql.One).Scan(&dbpassword)
+	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY, username).Consistency(gocql.One).Scan(&dbpassword)
+	logging.Info(fmt.Sprintf("Password from DB: %v", dbpassword))
 	if err != nil {
 		logging.Error(fmt.Sprintf("Authentication failed: %v", err))
 		return false, err
