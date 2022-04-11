@@ -22,6 +22,7 @@ const (
 
 const INSERT_LOCATION_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
 const INSERT_USER_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS"
+const AUTHENTICATION_QUERY = "SELECT password FROM cedarcosmoskeyspace.cedarusers WHERE username = ?"
 
 type CosmosSink struct {
 	contact_point      string
@@ -75,9 +76,25 @@ func (sink *CosmosSink) TestConnect(contact_point, cassandra_port, cassandra_use
 	return nil
 }
 
+func (sink *CosmosSink) Authenticate(username, password string) (bool, error) {
+	if sink.cosmos_session == nil {
+		logging.Error("Please connect before inserting location.")
+		return false, fmt.Errorf("Please connect before inserting location.")
+	}
+
+	var dbpassword string
+	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY).Bind(username).Consistency(gocql.One).Scan(&dbpassword)
+	if err != nil {
+		logging.Error(fmt.Sprintf("Authentication failed: %v", err))
+		return false, err
+	}
+
+	return password == dbpassword, nil
+}
+
 func (sink *CosmosSink) InsertLocation(location *gen.Location) (bool, error) {
 	if sink.cosmos_session == nil {
-		logging.Fatal("Please connect before inserting location.")
+		logging.Error("Please connect before inserting location.")
 		return false, fmt.Errorf("Please connect before inserting location.")
 	}
 	err := sink.cosmos_session.Query(INSERT_LOCATION_QUERY).Bind(location.Id, location.Lat, location.Lng, location.Timestamp, location.Device).Exec()
@@ -92,7 +109,7 @@ func (sink *CosmosSink) InsertLocation(location *gen.Location) (bool, error) {
 
 func (sink *CosmosSink) InsertUser(user *gen.User) (bool, error) {
 	if sink.cosmos_session == nil {
-		logging.Fatal("Please connect before inserting user.")
+		logging.Error("Please connect before inserting user.")
 		return false, fmt.Errorf("Please connect before inserting user.")
 	}
 	err := sink.cosmos_session.Query(INSERT_USER_QUERY).Bind(
@@ -110,7 +127,8 @@ func getSession(contactPoint, cassandraPort, user, password string) (*gocql.Sess
 	clusterConfig := gocql.NewCluster(contactPoint)
 	port, err := strconv.Atoi(cassandraPort)
 	if err != nil {
-		logging.Fatal(fmt.Sprintf("Couldn't convert cosmos cassandra port to int, err: %v", err))
+		logging.Error(fmt.Sprintf("Couldn't convert cosmos cassandra port to int, err: %v", err))
+		return nil, err
 	}
 	clusterConfig.Port = port
 	clusterConfig.ProtoVersion = 4
