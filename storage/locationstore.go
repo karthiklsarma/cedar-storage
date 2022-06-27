@@ -23,6 +23,7 @@ const (
 const INSERT_LOCATION_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarlocation (id, lat, lng, timestamp, device) VALUES (?, ?, ?, ?, ?)"
 const INSERT_USER_QUERY = "INSERT INTO cedarcosmoskeyspace.cedarusers (id, creationtime, username, firstname, lastname, password, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS"
 const AUTHENTICATION_QUERY = `SELECT password FROM cedarcosmoskeyspace.cedarusers WHERE username = ? LIMIT 1`
+const USER_SEARCH_QUERY = "SELECT email, username FROM cedarcosmoskeyspace.cedarusers WHERE username = ?"
 
 type CosmosSink struct {
 	contact_point      string
@@ -76,14 +77,14 @@ func (sink *CosmosSink) TestConnect(contact_point, cassandra_port, cassandra_use
 	return nil
 }
 
-func (sink *CosmosSink) Authenticate(username, password string) (bool, error) {
+func (sink *CosmosSink) Authenticate(email, password string) (bool, error) {
 	if sink.cosmos_session == nil {
 		logging.Error("Please connect before inserting location.")
 		return false, fmt.Errorf("Please connect before inserting location.")
 	}
 
 	var dbpassword string
-	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY, username).Consistency(gocql.One).Scan(&dbpassword)
+	err := sink.cosmos_session.Query(AUTHENTICATION_QUERY, email).Consistency(gocql.One).Scan(&dbpassword)
 	if err != nil {
 		logging.Error(fmt.Sprintf("Authentication failed: %v", err))
 		return false, err
@@ -112,6 +113,16 @@ func (sink *CosmosSink) InsertUser(user *gen.User) (bool, error) {
 		logging.Error("Please connect before inserting user.")
 		return false, fmt.Errorf("Please connect before inserting user.")
 	}
+
+	iter := sink.cosmos_session.Query(USER_SEARCH_QUERY).Bind(user.Email).Iter()
+	if err := iter.Close(); err != nil {
+		return false, fmt.Errorf(fmt.Sprintf("failed to search users with email: %v", user.Email))
+	}
+
+	if iter.NumRows() > 0 {
+		return false, fmt.Errorf(fmt.Sprintf("user %v already exists. Use another email.", user.Email))
+	}
+
 	err := sink.cosmos_session.Query(INSERT_USER_QUERY).Bind(
 		uuid.New().String(), time.Now().UTC().Unix(), user.Username, user.Firstname, user.Lastname, user.Password, user.Email, user.Phone).Exec()
 	if err != nil {
